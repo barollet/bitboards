@@ -8,6 +8,7 @@ pub type Bitboard<const N: usize> = BitboardInternal<{(N-1) / 64 + 1}, {(N-1) % 
 
 /// Internal structure for Bitboard, N is the number of 64 bits words and R is the index of the
 /// last valid bit in the last word
+#[derive(Clone)]
 pub struct BitboardInternal<const N: usize, const R: usize> {
     words: [u64; N],
 }
@@ -30,7 +31,7 @@ impl<const N: usize, const R: usize> BitboardInternal<N, R> {
     #[inline]
     pub fn unset(&mut self, index: usize) {
         let (word, mask) = self.word_mask_mut(index);
-        *word |= !mask;
+        *word &= !mask;
     }
     /// Returns wether or not the given bit is set
     #[inline]
@@ -46,6 +47,12 @@ impl<const N: usize, const R: usize> BitboardInternal<N, R> {
     /// Returns wether the given Bitboard is empty
     pub fn is_empty(&self) -> bool {
         self.words.iter().all(|&w| w == 0)
+    }
+    /// Flip the whole bitboard (equivalent to a not to itself)
+    pub fn flip(&mut self) {
+        for word in self.words.iter_mut() {
+            *word = !*word;
+        }
     }
 
     /// Returns a reference to the word pointed by the given index and a mask with the
@@ -77,7 +84,7 @@ impl<const N: usize, const R: usize> BitboardInternal<N, R> {
         let start_pos = start_index % 64;
 
         // A word composed of line_size ones as LSBs
-        let ones = 2 ^ (line_size as u64)- 1;
+        let ones = (1 << line_size as u64) - 1;
 
         // if the line fits in a single word
         if start_pos + line_size < 64 {
@@ -87,7 +94,7 @@ impl<const N: usize, const R: usize> BitboardInternal<N, R> {
             // first word (the overflow is deleted)
             self.set_word(start_index, ones);
             // second word
-            let second_ones = ones << (64 - start_pos);
+            let second_ones = ones >> (64 - start_pos);
             let transition_index = start_index + 64 - start_pos;
             self.set_word(transition_index, second_ones);
         }
